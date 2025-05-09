@@ -5,6 +5,14 @@ using namespace std;
 enum Color { RED, GREEN, BLUE, YELLOW, NONE };
 enum Type { NUMBER, SKIP, REVERSE, DRAW_TWO, WILD, WILD_DRAW_FOUR };
 
+string colorToString(Color c) {
+    if (c == RED) return "Red";
+    if (c == GREEN) return "Green";
+    if (c == BLUE) return "Blue";
+    if (c == YELLOW) return "Yellow";
+    return "None";
+}
+
 struct Card {
     Color color;
     Type type;
@@ -15,12 +23,24 @@ struct Card {
         type = t;
         number = n;
     }
+
+    string toString() {
+        if (type == NUMBER) return colorToString(color) + " " + to_string(number);
+        if (type == SKIP) return colorToString(color) + " Skip";
+        if (type == REVERSE) return colorToString(color) + " Reverse";
+        if (type == DRAW_TWO) return colorToString(color) + " Draw Two";
+        if (type == WILD) return "Wild";
+        if (type == WILD_DRAW_FOUR) return "Wild Draw Four";
+        return "Unknown";
+    }
+
+    bool equals(Card other) {
+        return color == other.color && type == other.type && number == other.number;
+    }
 };
 
 int main() {
-    Card c(RED, NUMBER, 5);
-    cout << "Card created.\n";
+    Card c(GREEN, SKIP);
+    cout << c.toString() << endl; 
     return 0;
 }
-
-
