@@ -1,5 +1,8 @@
 #include <iostream>
 #include <string>
+#include <vector>
+#include <cstdlib>
+#include <ctime>
 using namespace std;
 
 enum Color { RED, GREEN, BLUE, YELLOW, NONE };
@@ -39,8 +42,50 @@ struct Card {
     }
 };
 
+class Deck {
+public:
+    vector<Card> cards;
+
+    Deck() {
+        generate();
+        shuffle();
+    }
+
+    void generate() {
+        cards.clear();
+        for (int c = RED; c <= YELLOW; c++) {
+            for (int n = 0; n <= 9; n++)
+                cards.push_back(Card((Color)c, NUMBER, n));
+            for (int t = SKIP; t <= DRAW_TWO; t++)
+                cards.push_back(Card((Color)c, (Type)t));
+        }
+        for (int i = 0; i < 4; i++) {
+            cards.push_back(Card(NONE, WILD));
+            cards.push_back(Card(NONE, WILD_DRAW_FOUR));
+        }
+    }
+
+    void shuffle() {
+        srand(time(0));
+        for (int i = 0; i < cards.size(); i++) {
+            int j = rand() % cards.size();
+            Card temp = cards[i];
+            cards[i] = cards[j];
+            cards[j] = temp;
+        }
+    }
+
+    Card drawCard() {
+        if (cards.empty()) generate();
+        Card c = cards.back();
+        cards.pop_back();
+        return c;
+    }
+};
+
 int main() {
-    Card c(GREEN, SKIP);
-    cout << c.toString() << endl; 
+    Deck d;
+    Card c = d.drawCard();
+    cout << "Drawn: " << c.toString() << endl;
     return 0;
 }
