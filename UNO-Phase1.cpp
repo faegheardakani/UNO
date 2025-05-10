@@ -83,9 +83,27 @@ public:
     }
 };
 
+class Player {
+public:
+    vector<Card> hand;
+    string name;
+
+    Player(string n) {
+        name = n;
+    }
+
+    void draw(Deck& deck, int count = 1) {
+        for (int i = 0; i < count; i++)
+            hand.push_back(deck.drawCard());
+    }
+};
+
 int main() {
     Deck d;
-    Card c = d.drawCard();
-    cout << "Drawn: " << c.toString() << endl;
+    Player p("Tester");
+    p.draw(d, 7);
+    for (int i = 0; i < p.hand.size(); i++)
+        cout << p.hand[i].toString() << endl;
     return 0;
 }
+
