@@ -113,18 +113,32 @@ public:
     }
 };
 
-int main() {
-    Deck d;
-    Player p("Tester");
-    p.draw(d, 5);
-    Card top = d.drawCard();
+class Game {
+public:
+    Deck deck;
+    vector<Player> players;
+    int currentPlayer;
+    Color currentColor;
 
-    cout << "Top card: " << top.toString() << endl;
-    cout << "Player hand:" << endl;
-    for (int i = 0; i < p.hand.size(); i++) {
-        cout << "- " << p.hand[i].toString() << endl;
+    Game(string playerName) {
+        players.push_back(Player(playerName));
+        players.push_back(Player("Bot1"));
+
+        for (int i = 0; i < players.size(); i++)
+            players[i].draw(deck, 7);
+
+        Card first = deck.drawCard();
+        currentColor = first.color;
+        currentPlayer = 0;
+
+        cout << "First card: " << first.toString() << endl;
+        cout << players[0].name << " has these cards:" << endl;
+        for (int i = 0; i < players[0].hand.size(); i++)
+            cout << "- " << players[0].hand[i].toString() << endl;
     }
+};
 
-    cout << "Can play : " << (p.hasPlayableCard(top, top.color) ? "Yes" : "No") << endl;
+int main() {
+    Game g("Tester");
     return 0;
 }
