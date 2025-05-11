@@ -96,14 +96,35 @@ public:
         for (int i = 0; i < count; i++)
             hand.push_back(deck.drawCard());
     }
+
+    bool canPlay(Card c, Card top, Color currentColor) {
+        if (c.type == WILD || c.type == WILD_DRAW_FOUR) return true;
+        if (c.color == currentColor) return true;
+        if (c.type == top.type && c.type != NUMBER) return true;
+        if (c.type == NUMBER && top.type == NUMBER && c.number == top.number) return true;
+        return false;
+    }
+
+    bool hasPlayableCard(Card top, Color currentColor) {
+        for (int i = 0; i < hand.size(); i++) {
+            if (canPlay(hand[i], top, currentColor)) return true;
+        }
+        return false;
+    }
 };
 
 int main() {
     Deck d;
     Player p("Tester");
-    p.draw(d, 7);
-    for (int i = 0; i < p.hand.size(); i++)
-        cout << p.hand[i].toString() << endl;
+    p.draw(d, 5);
+    Card top = d.drawCard();
+
+    cout << "Top card: " << top.toString() << endl;
+    cout << "Player hand:" << endl;
+    for (int i = 0; i < p.hand.size(); i++) {
+        cout << "- " << p.hand[i].toString() << endl;
+    }
+
+    cout << "Can play : " << (p.hasPlayableCard(top, top.color) ? "Yes" : "No") << endl;
     return 0;
 }
-
