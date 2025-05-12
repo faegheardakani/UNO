@@ -127,6 +127,7 @@ public:
     int direction;
     Color currentColor;
     Card topCard;
+    bool allDiscard;
 
     Game(string playerName) {
         players.push_back(Player(playerName));
@@ -141,6 +142,11 @@ public:
         currentColor = topCard.color;
         currentPlayer = 0;
         direction = 1;
+
+        int toggle;
+        cout << "Enable All Discard rule? (1 = Yes, 0 = No): ";
+        cin >> toggle;
+        allDiscard = toggle == 1;
 
         for (int round = 0; round < 4; round++)
             runTurn();
@@ -162,6 +168,18 @@ public:
                     currentColor = topCard.color;
                     cout << p.name << " plays " << topCard.toString() << endl;
                     p.hand.erase(p.hand.begin() + i);
+
+                    if (allDiscard) {
+                        for (int j = 0; j < p.hand.size();) {
+                            if (p.hand[j].color == currentColor) {
+                                cout << "-> " << p.name << " also discards " << p.hand[j].toString() << endl;
+                                p.hand.erase(p.hand.begin() + j);
+                            } else {
+                                j++;
+                            }
+                        }
+                    }
+
                     break;
                 }
             }
@@ -178,4 +196,6 @@ int main() {
     Game g("Tester");
     return 0;
 }
+
+
 
