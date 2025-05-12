@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <vector>
 #include <string>
@@ -110,9 +111,7 @@ public:
         srand(time(0));
         for (int i = 0; i < cards.size(); i++) {
             int j = rand() % cards.size();
-            Card temp = cards[i];
-            cards[i] = cards[j];
-            cards[j] = temp;
+            swap(cards[i], cards[j]);
         }
     }
 
@@ -157,9 +156,8 @@ public:
     }
 
     bool hasPlayableCard(Card top, Color currentColor) {
-        for (int i = 0; i < hand.size(); i++) {
-            if (canPlay(hand[i], top, currentColor)) return true;
-        }
+        for (Card card : hand)
+            if (canPlay(card, top, currentColor)) return true;
         return false;
     }
 
@@ -194,20 +192,15 @@ public:
 
     Card playCard(Card top, Color currentColor, Color& newColor) {
         if (!isBot) return chooseCard(top, newColor, currentColor);
-        else {
-            for (int i = 0; i < hand.size(); i++) {
-                if (canPlay(hand[i], top, currentColor)) {
-                    Card played = hand[i];
-                    hand.erase(hand.begin() + i);
-                    if (played.type == WILD || played.type == WILD_DRAW_FOUR)
-                        newColor = (Color)(rand() % 4);
-                    else
-                        newColor = played.color;
-                    return played;
-                }
+        for (int i = 0; i < hand.size(); i++) {
+            if (canPlay(hand[i], top, currentColor)) {
+                Card played = hand[i];
+                hand.erase(hand.begin() + i);
+                newColor = (played.type == WILD || played.type == WILD_DRAW_FOUR) ? (Color)(rand() % 4) : played.color;
+                return played;
             }
-            return Card(NONE, NUMBER);
         }
+        return Card(NONE, NUMBER);
     }
 };
 
@@ -231,15 +224,12 @@ public:
         players.push_back(Player("Bot2", true));
         players.push_back(Player("Bot3", true));
 
-        for (int i = 0; i < players.size(); i++)
-            players[i].draw(deck, 7);
+        for (auto& p : players)
+            p.draw(deck, 7);
 
         Card first = deck.drawCard();
         while (first.type == WILD_DRAW_FOUR) first = deck.drawCard();
-        if (first.type == WILD)
-            currentColor = (Color)(rand() % 4);
-        else
-            currentColor = first.color;
+        currentColor = (first.type == WILD) ? (Color)(rand() % 4) : first.color;
         deck.placeCard(first);
 
         currentPlayer = 0;
@@ -251,21 +241,84 @@ public:
     }
 
     void endGame(bool won) {
-        if (won)
-            playerData["wins"] = int(playerData["wins"]) + 1;
-        else
-            playerData["losses"] = int(playerData["losses"]) + 1;
+        if (won) playerData["wins"] = int(playerData["wins"]) + 1;
+        else playerData["losses"] = int(playerData["losses"]) + 1;
         playerData["history"].push_back({ {"date", getTodayDate()}, {"result", won ? "win" : "loss"} });
     }
 
     void showCardCounts() {
         cout << "\nCard counts: ";
-        for (int i = 0; i < players.size(); i++) {
-            cout << players[i].name << ": " << players[i].hand.size();
-            if (players[i].hand.size() == 1) cout << " (UNO!)";
+        for (auto& p : players) {
+            cout << p.name << ": " << p.hand.size();
+            if (p.hand.size() == 1) cout << " (UNO!)";
             cout << " | ";
         }
         cout << endl;
+    }
+
+    void handleStacking(Type PType, int amount) {
+        int totalP = amount;
+        int next = (currentPlayer + direction + 4) % 4;
+
+        while (true) {
+            Player& p = players[next];
+            bool hasSame = false;
+            for (Card c : p.hand)
+                if (c.type == PType && (PType == WILD_DRAW_FOUR || c.color == deck.topCard().color)) {
+                    hasSame = true;
+                    break;
+                }
+
+            if (hasSame) {
+                if (p.isBot) {
+                    for (int i = 0; i < p.hand.size(); i++) {
+                        if (p.hand[i].type == PType) {
+                            Card played = p.hand[i];
+                            p.hand.erase(p.hand.begin() + i);
+                            deck.placeCard(played);
+                            cout << p.name << " plays " << played.toString() << " (stack)\n";
+                            totalP += (PType == DRAW_TWO) ? 2 : 4;
+                            currentColor = played.color == NONE ? (Color)(rand() % 4) : played.color;
+                            next = (next + direction + 4) % 4;
+                            break;
+                        }
+                    }
+                } else {
+                    cout << "You are penalized with " << totalP << " cards. You have a matching card.\n";
+                    cout << "Do you want to stack it? (1 = Yes, 0 = No): ";
+                    int choice;
+                    cin >> choice;
+                    if (choice == 1) {
+                        for (int i = 0; i < p.hand.size(); i++) {
+                            if (p.hand[i].type == PType) {
+                                Card played = p.hand[i];
+                                p.hand.erase(p.hand.begin() + i);
+                                deck.placeCard(played);
+                                cout << p.name << " plays " << played.toString() << " (stack)\n";
+                                totalP += (PType == DRAW_TWO) ? 2 : 4;
+                                if (PType == WILD_DRAW_FOUR) {
+                                    int col;
+                                    cout << "Choose color (0=Red, 1=Green, 2=Blue, 3=Yellow): ";
+                                    cin >> col;
+                                    currentColor = (Color)col;
+                                } else {
+                                    currentColor = played.color;
+                                }
+                                next = (next + direction + 4) % 4;
+                                break;
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            } else {
+                cout << p.name << " must draw " << totalP << " cards.\n";
+                p.draw(deck, totalP);
+                advanceTurn();
+                break;
+            }
+        }
     }
 
     void mainLoop() {
@@ -299,19 +352,13 @@ public:
             if (allDiscardRule) {
                 vector<Card>& hand = p.hand;
                 vector<Card> extras;
-                for (int i = 0; i < hand.size(); i++) {
-                    if (hand[i].color == played.color)
-                        extras.push_back(hand[i]);
-                }
-                for (int i = 0; i < extras.size(); i++) {
-                    cout << "-> " << p.name << " also discards " << extras[i].toString() << " (All Discard)\n";
-                    for (int j = 0; j < hand.size(); j++) {
-                        if (hand[j].equals(extras[i])) {
-                            hand.erase(hand.begin() + j);
-                            break;
-                        }
-                    }
-                    deck.placeCard(extras[i]);
+                for (Card c : hand)
+                    if (c.color == played.color) extras.push_back(c);
+                for (Card c : extras) {
+                    cout << "-> " << p.name << " also discards " << c.toString() << " (All Discard)\n";
+                    auto it = find_if(hand.begin(), hand.end(), [&](Card a) { return a.equals(c); });
+                    if (it != hand.end()) hand.erase(it);
+                    deck.placeCard(c);
                 }
             }
 
@@ -319,14 +366,12 @@ public:
                 cout << p.name << " wins the game!\n";
                 endGame(p.name == playerName);
                 break;
-            } else if (p.hand.size() == 1) {
-                cout << "UNO! " << p.name << " has one card left!\n";
             }
 
             if (played.type == REVERSE) direction *= -1;
             else if (played.type == SKIP) advanceTurn();
-            else if (played.type == DRAW_TWO) nextPlayer().draw(deck, 2);
-            else if (played.type == WILD_DRAW_FOUR) nextPlayer().draw(deck, 4);
+            else if (played.type == DRAW_TWO) handleStacking(DRAW_TWO, 2);
+            else if (played.type == WILD_DRAW_FOUR) handleStacking(WILD_DRAW_FOUR, 4);
 
             advanceTurn();
         }
@@ -334,11 +379,6 @@ public:
 
     void advanceTurn() {
         currentPlayer = (currentPlayer + direction + 4) % 4;
-    }
-
-    Player& nextPlayer() {
-        int next = (currentPlayer + direction + 4) % 4;
-        return players[next];
     }
 };
 
@@ -355,6 +395,3 @@ int main() {
     savePlayerData(player);
     return 0;
 }
-
-
-
