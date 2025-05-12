@@ -132,9 +132,16 @@ public:
         currentPlayer = 0;
 
         cout << "First card: " << first.toString() << endl;
-        cout << players[0].name << " has these cards:" << endl;
-        for (int i = 0; i < players[0].hand.size(); i++)
-            cout << "- " << players[0].hand[i].toString() << endl;
+        runTurn();
+    }
+
+    void runTurn() {
+        Player& p = players[currentPlayer];
+        Card top = deck.drawCard();
+        cout << p.name << " has these cards:" << endl;
+        for (int i = 0; i < p.hand.size(); i++)
+            cout << "- " << p.hand[i].toString() << endl;
+        cout << "Can play something: " << (p.hasPlayableCard(top, top.color) ? "Yes" : "No") << endl;
     }
 };
 
@@ -142,3 +149,5 @@ int main() {
     Game g("Tester");
     return 0;
 }
+
+
