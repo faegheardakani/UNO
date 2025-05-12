@@ -21,6 +21,12 @@ struct Card {
     Type type;
     int number;
 
+    Card() {
+        color = NONE;
+        type = NUMBER;
+        number = -1;
+    }
+
     Card(Color c, Type t, int n = -1) {
         color = c;
         type = t;
@@ -119,6 +125,7 @@ public:
     vector<Player> players;
     int currentPlayer;
     Color currentColor;
+    Card topCard;
 
     Game(string playerName) {
         players.push_back(Player(playerName));
@@ -127,21 +134,33 @@ public:
         for (int i = 0; i < players.size(); i++)
             players[i].draw(deck, 7);
 
-        Card first = deck.drawCard();
-        currentColor = first.color;
+        topCard = deck.drawCard();
+        currentColor = topCard.color;
         currentPlayer = 0;
 
-        cout << "First card: " << first.toString() << endl;
         runTurn();
     }
 
     void runTurn() {
         Player& p = players[currentPlayer];
-        Card top = deck.drawCard();
+        cout << "Top card: " << topCard.toString() << endl;
         cout << p.name << " has these cards:" << endl;
         for (int i = 0; i < p.hand.size(); i++)
             cout << "- " << p.hand[i].toString() << endl;
-        cout << "Can play something: " << (p.hasPlayableCard(top, top.color) ? "Yes" : "No") << endl;
+        if (!p.hasPlayableCard(topCard, currentColor)) {
+            cout << p.name << " draws a card." << endl;
+            p.draw(deck);
+        } else {
+            for (int i = 0; i < p.hand.size(); i++) {
+                if (p.canPlay(p.hand[i], topCard, currentColor)) {
+                    topCard = p.hand[i];
+                    currentColor = topCard.color;
+                    cout << p.name << " plays " << topCard.toString() << endl;
+                    p.hand.erase(p.hand.begin() + i);
+                    break;
+                }
+            }
+        }
     }
 };
 
@@ -149,5 +168,4 @@ int main() {
     Game g("Tester");
     return 0;
 }
-
 
