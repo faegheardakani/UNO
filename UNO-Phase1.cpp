@@ -124,12 +124,15 @@ public:
     Deck deck;
     vector<Player> players;
     int currentPlayer;
+    int direction;
     Color currentColor;
     Card topCard;
 
     Game(string playerName) {
         players.push_back(Player(playerName));
         players.push_back(Player("Bot1"));
+        players.push_back(Player("Bot2"));
+        players.push_back(Player("Bot3"));
 
         for (int i = 0; i < players.size(); i++)
             players[i].draw(deck, 7);
@@ -137,8 +140,10 @@ public:
         topCard = deck.drawCard();
         currentColor = topCard.color;
         currentPlayer = 0;
+        direction = 1;
 
-        runTurn();
+        for (int round = 0; round < 4; round++)
+            runTurn();
     }
 
     void runTurn() {
@@ -161,6 +166,11 @@ public:
                 }
             }
         }
+        advanceTurn();
+    }
+
+    void advanceTurn() {
+        currentPlayer = (currentPlayer + direction + players.size()) % players.size();
     }
 };
 
