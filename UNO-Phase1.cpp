@@ -4,18 +4,56 @@
 #include <ctime>
 #include <cstdlib>
 #include <stack>
+#include <fstream>
+#include "json.hpp"
 
 using namespace std;
+using json = nlohmann::json;
 
 enum Color { RED, GREEN, BLUE, YELLOW, NONE };
 enum Type { NUMBER, SKIP, REVERSE, DRAW_TWO, WILD, WILD_DRAW_FOUR };
 
 string colorToString(Color c) {
-    if (c == RED) return "Red";
-    if (c == GREEN) return "Green";
-    if (c == BLUE) return "Blue";
-    if (c == YELLOW) return "Yellow";
-    return "None";
+    switch (c) {
+        case RED: return "\033[1;31mRed\033[0m";
+        case GREEN: return "\033[1;32mGreen\033[0m";
+        case BLUE: return "\033[1;34mBlue\033[0m";
+        case YELLOW: return "\033[1;33mYellow\033[0m";
+        default: return "None";
+    }
+}
+
+string getTodayDate() {
+    time_t t = time(0);
+    tm* now = localtime(&t);
+    char buf[11];
+    strftime(buf, sizeof(buf), "%Y-%m-%d", now);
+    return string(buf);
+}
+
+json loadPlayerData(string name) {
+    ifstream in("player_stats.json");
+    json data;
+    if (in) {
+        in >> data;
+        if (data.contains(name)) return data[name];
+    }
+    return {
+        {"name", name},
+        {"played_games", 0},
+        {"wins", 0},
+        {"losses", 0},
+        {"history", json::array()}
+    };
+}
+
+void savePlayerData(json player) {
+    json allData;
+    ifstream in("player_stats.json");
+    if (in) in >> allData;
+    allData[player["name"]] = player;
+    ofstream out("player_stats.json");
+    out << allData.dump(4);
 }
 
 struct Card {
@@ -56,7 +94,6 @@ public:
 
     void generate() {
         cards.clear();
-        while (!pile.empty()) pile.pop();
         for (int c = RED; c <= YELLOW; c++) {
             for (int n = 0; n <= 9; n++)
                 cards.push_back(Card((Color)c, NUMBER, n));
@@ -91,8 +128,7 @@ public:
     }
 
     Card topCard() {
-        if (!pile.empty()) return pile.top();
-        return Card(NONE, NUMBER);
+        return pile.top();
     }
 };
 
@@ -151,7 +187,6 @@ public:
                     return selected;
                 } else {
                     cout << "Invalid card. Try again.\n";
-                    cout << "\nTop card: " << top.toString() << " | Current color: " << colorToString(currentColor) << endl;
                 }
             }
         }
@@ -164,7 +199,10 @@ public:
                 if (canPlay(hand[i], top, currentColor)) {
                     Card played = hand[i];
                     hand.erase(hand.begin() + i);
-                    newColor = (played.type == WILD || played.type == WILD_DRAW_FOUR) ? (Color)(rand() % 4) : played.color;
+                    if (played.type == WILD || played.type == WILD_DRAW_FOUR)
+                        newColor = (Color)(rand() % 4);
+                    else
+                        newColor = played.color;
                     return played;
                 }
             }
@@ -181,9 +219,13 @@ public:
     int direction;
     Color currentColor;
     bool allDiscardRule;
+    string playerName;
+    json& playerData;
 
-    Game(string name, bool enableAllDiscard) {
+    Game(string name, json& pdata, bool enableAllDiscard) : playerData(pdata) {
+        playerName = name;
         allDiscardRule = enableAllDiscard;
+
         players.push_back(Player(name));
         players.push_back(Player("Bot1", true));
         players.push_back(Player("Bot2", true));
@@ -194,14 +236,26 @@ public:
 
         Card first = deck.drawCard();
         while (first.type == WILD_DRAW_FOUR) first = deck.drawCard();
-        if (first.type == WILD) currentColor = (Color)(rand() % 4);
-        else currentColor = first.color;
+        if (first.type == WILD)
+            currentColor = (Color)(rand() % 4);
+        else
+            currentColor = first.color;
         deck.placeCard(first);
 
         currentPlayer = 0;
         direction = 1;
 
+        playerData["played_games"] = int(playerData["played_games"]) + 1;
+
         mainLoop();
+    }
+
+    void endGame(bool won) {
+        if (won)
+            playerData["wins"] = int(playerData["wins"]) + 1;
+        else
+            playerData["losses"] = int(playerData["losses"]) + 1;
+        playerData["history"].push_back({ {"date", getTodayDate()}, {"result", won ? "win" : "loss"} });
     }
 
     void showCardCounts() {
@@ -242,7 +296,7 @@ public:
             deck.placeCard(played);
             currentColor = newColor;
 
-            if (allDiscardRule && played.color != NONE) {
+            if (allDiscardRule) {
                 vector<Card>& hand = p.hand;
                 vector<Card> extras;
                 for (int i = 0; i < hand.size(); i++) {
@@ -263,6 +317,7 @@ public:
 
             if (p.hand.empty()) {
                 cout << p.name << " wins the game!\n";
+                endGame(p.name == playerName);
                 break;
             } else if (p.hand.size() == 1) {
                 cout << "UNO! " << p.name << " has one card left!\n";
@@ -271,17 +326,11 @@ public:
             if (played.type == REVERSE) direction *= -1;
             else if (played.type == SKIP) advanceTurn();
             else if (played.type == DRAW_TWO) nextPlayer().draw(deck, 2);
-            else if (played.type == WILD_DRAW_FOUR) {
-                nextPlayer().draw(deck, 4);
-                advanceTurn();
-                advanceTurn();
-                continue;
-            }
+            else if (played.type == WILD_DRAW_FOUR) nextPlayer().draw(deck, 4);
 
             advanceTurn();
         }
     }
-
 
     void advanceTurn() {
         currentPlayer = (currentPlayer + direction + 4) % 4;
@@ -301,7 +350,9 @@ int main() {
     cout << "Enable All Discard rule? (1 = Yes, 0 = No): ";
     cin >> enableAllDiscard;
 
-    Game g(name, enableAllDiscard);
+    json player = loadPlayerData(name);
+    Game g(name, player, enableAllDiscard);
+    savePlayerData(player);
     return 0;
 }
 
